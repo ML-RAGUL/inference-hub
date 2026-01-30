@@ -1,0 +1,44 @@
+# ================================
+# InferenceHub - Docker Compose
+# ================================
+# Run everything with: docker-compose up
+
+services:
+  # ──────────────────────────────────
+  # PostgreSQL Database
+  # ──────────────────────────────────
+  db:
+    image: postgres:15
+    container_name: inferencehub-db
+    environment:
+      POSTGRES_USER: inferencehub
+      POSTGRES_PASSWORD: inferencehub123
+      POSTGRES_DB: inferencehub
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inferencehub"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────
+  # FastAPI Application
+  # ──────────────────────────────────
+  app:
+    build: .
+    container_name: inferencehub-app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://inferencehub:inferencehub123@db:5432/inferencehub
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
