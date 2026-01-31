@@ -42,6 +42,20 @@ Client Request
 - Groq API - LLM inference (Llama 3.1 8B)
 - Docker - Containerization
 
+## Load Test Results
+
+Tested with Locust under 100 concurrent users:
+
+| Metric | Result |
+|--------|--------|
+| Requests/sec (sustained) | 200+ |
+| Requests/sec (peak) | 580 |
+| Failure rate | 0% |
+| Median response time | 200-300ms |
+| 95th percentile | 600-850ms |
+
+Infrastructure handles high load. External LLM API is the bottleneck, not the application code.
+
 ## Quick Start
 
 **Prerequisites:** Docker, Groq API key (free at console.groq.com)
@@ -104,6 +118,8 @@ inference-hub/
 │   └── db/
 │       ├── database.py   # DB connection
 │       └── models.py     # SQLAlchemy models
+├── locustfile.py         # Load tests (with AI)
+├── locustfile_infra.py   # Load tests (infrastructure)
 ├── Dockerfile
 ├── docker-compose.yml
 └── requirements.txt
@@ -131,6 +147,21 @@ python init_db.py
 uvicorn src.main:app --reload
 ```
 
+## Load Testing
+
+```bash
+# Install
+pip install locust
+
+# Test infrastructure (without AI calls)
+locust -f locustfile_infra.py --host=http://localhost:8000
+
+# Test full flow (with AI calls)
+locust -f locustfile.py --host=http://localhost:8000
+```
+
+Open http://localhost:8089 to run tests.
+
 ## Configuration
 
 Environment variables (`.env`):
@@ -147,7 +178,8 @@ Building this project helped me understand:
 - API authentication patterns using API keys
 - Database modeling with SQLAlchemy ORM
 - Containerizing Python applications with Docker
-- Integrating external LLM APIs efficiently
+- Load testing with Locust to identify bottlenecks
+- External API rate limits and how to handle them
 
 ## License
 
