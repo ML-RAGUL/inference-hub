@@ -2,6 +2,15 @@
 
 A multi-tenant LLM platform that enables businesses to integrate AI capabilities through a simple REST API. Built with FastAPI, PostgreSQL, and Llama 3.1.
 
+## Live Demo
+
+| Resource | URL |
+|----------|-----|
+| API | http://3.26.181.226:8000 |
+| Swagger Docs | http://3.26.181.226:8000/docs |
+
+Deployed on AWS EC2 (ap-southeast-2) with Docker.
+
 ## Why This Project?
 
 Most businesses want to use LLMs but face common challenges:
@@ -41,6 +50,7 @@ Client Request
 - SQLAlchemy - ORM
 - Groq API - LLM inference (Llama 3.1 8B)
 - Docker - Containerization
+- AWS EC2 - Cloud deployment
 
 ## Load Test Results
 
@@ -162,6 +172,18 @@ locust -f locustfile.py --host=http://localhost:8000
 
 Open http://localhost:8089 to run tests.
 
+## AWS Deployment
+
+Deployed on AWS EC2 (t3.micro) in ap-southeast-2 region.
+
+Steps to deploy:
+1. Launch EC2 instance (Ubuntu 24.04)
+2. Install Docker and Docker Compose
+3. Clone repository
+4. Configure environment variables
+5. Run `docker-compose up --build -d`
+6. Open port 8000 in security group
+
 ## Configuration
 
 Environment variables (`.env`):
@@ -180,6 +202,8 @@ Building this project helped me understand:
 - Containerizing Python applications with Docker
 - Load testing with Locust to identify bottlenecks
 - External API rate limits and how to handle them
+- AWS EC2 deployment and security group configuration
+- SSH key management and Linux server administration
 
 ## License
 
