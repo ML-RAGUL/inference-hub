@@ -1,3 +1,5 @@
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi import FastAPI, HTTPException, Header, Depends
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -38,6 +40,13 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+# Serve static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Serve UI at root
+@app.get("/", response_class=FileResponse)
+async def serve_ui():
+    return FileResponse("static/index.html")
 
 # ============================
 # CONFIGURATION
