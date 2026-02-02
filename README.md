@@ -1,56 +1,146 @@
 # InferenceHub
 
-A multi-tenant LLM platform that enables businesses to integrate AI capabilities through a simple REST API. Built with FastAPI, PostgreSQL, and Llama 3.1.
+A multi-tenant LLM platform that enables businesses to integrate AI capabilities through a REST API. Built with FastAPI, PostgreSQL, and Llama 3.1.
 
 ## Live Demo
 
 | Resource | URL |
 |----------|-----|
-| API | http://3.26.181.226:8000 |
-| Swagger Docs | http://3.26.181.226:8000/docs |
+| Application | http://3.26.205.39:8000 |
+| API Docs | http://3.26.205.39:8000/docs |
 
-Deployed on AWS EC2 (ap-southeast-2) with Docker.
-
-## Why This Project?
-
-Most businesses want to use LLMs but face common challenges:
-- Setting up and maintaining AI infrastructure is complex
-- Managing multiple clients with isolated data is difficult
-- Tracking usage and costs per client requires custom solutions
-
-InferenceHub solves these by providing a ready-to-deploy platform where each tenant gets:
-- Unique API key for authentication
-- Isolated data and usage tracking
-- Business-specific AI behavior (legal, medical, e-commerce, etc.)
-- Monthly quota management
+Deployed on AWS EC2 with RDS PostgreSQL, CI/CD via GitHub Actions.
 
 ## Architecture
 
 ```
-Client Request
-      |
-      v
-+------------------+
-|    FastAPI       |
-|  (Auth + Routes) |
-+--------+---------+
-         |
-    +----+----+
-    |         |
-    v         v
-+-------+  +--------+
-|  DB   |  |  Groq  |
-| (PG)  |  | (LLM)  |
-+-------+  +--------+
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│              │     │              │     │              │     │              │
+│    Client    │────▶│   FastAPI    │────▶│  PostgreSQL  │     │   Groq API   │
+│   Browser    │     │   (Docker)   │────▶│    (RDS)     │     │  (Llama 3.1) │
+│              │◀────│              │◀────│              │     │              │
+└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+                            │                                         ▲
+                            │                                         │
+                            └─────────────────────────────────────────┘
 ```
 
-**Tech Stack:**
-- FastAPI - Async API framework
-- PostgreSQL - Persistent storage
-- SQLAlchemy - ORM
-- Groq API - LLM inference (Llama 3.1 8B)
-- Docker - Containerization
-- AWS EC2 - Cloud deployment
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Backend | FastAPI, Python 3.11 |
+| Database | PostgreSQL 15 (AWS RDS) |
+| ORM | SQLAlchemy |
+| LLM | Groq API (Llama 3.1 8B) |
+| Container | Docker |
+| Cloud | AWS EC2, RDS, CloudWatch |
+| CI/CD | GitHub Actions |
+
+## Features
+
+**Multi-Tenancy** - Each business gets isolated data, unique API key, and usage tracking.
+
+**Business-Specific AI** - System prompts adapt based on business type:
+- Medical: Patient-friendly explanations with disclaimers
+- Legal: Formal language with IPC references
+- E-Commerce: Product descriptions, customer service
+- Education: Teaching-focused explanations
+- General: Default assistant behavior
+
+**Usage Tracking** - Every request logged with tokens used, cost, and response time.
+
+**Quota Management** - Monthly limits per tenant with automatic enforcement.
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | /signup | Register tenant, get API key |
+| POST | /inference | Send prompt, get AI response |
+| GET | /usage | Check quota and usage stats |
+| GET | /docs | Swagger documentation |
+
+## Quick Start
+
+**Prerequisites:** Docker, Groq API key
+
+```bash
+git clone https://github.com/ML-RAGUL/inference-hub.git
+cd inference-hub
+
+cp .env.example .env
+# Add your GROQ_API_KEY to .env
+
+docker-compose up --build
+```
+
+Open http://localhost:8000
+
+## Project Structure
+
+```
+inference-hub/
+├── src/
+│   ├── main.py              # FastAPI app, routes
+│   └── db/
+│       ├── database.py      # DB connection
+│       └── models.py        # SQLAlchemy models
+├── static/
+│   └── index.html           # Frontend UI
+├── .github/
+│   └── workflows/
+│       └── deploy.yml       # CI/CD pipeline
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+└── README.md
+```
+
+## Database Schema
+
+**tenants**
+- id, business_name, email, api_key, business_type
+- plan, monthly_quota, requests_used, created_at
+
+**usage_logs**
+- id, tenant_id, prompt, tokens_used, model
+- cost, response_time_ms, created_at
+
+## AWS Deployment
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    AWS Cloud (Sydney)                       │
+│                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
+│  │    EC2      │    │    RDS      │    │ CloudWatch  │     │
+│  │  (Docker)   │───▶│ (PostgreSQL)│    │ (Monitoring)│     │
+│  │  t3.micro   │    │ db.t4g.micro│    │   Alarms    │     │
+│  └─────────────┘    └─────────────┘    └─────────────┘     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Components:**
+- EC2 (t3.micro) - Runs Docker container with FastAPI
+- RDS (db.t4g.micro) - Managed PostgreSQL with auto-backups
+- CloudWatch - CPU monitoring with email alerts
+- Security Groups - Firewall rules for ports 22, 8000, 5432
+
+## CI/CD Pipeline
+
+On every push to main:
+
+1. **Test Job** - Checkout code, install dependencies, syntax check
+2. **Deploy Job** - SSH to EC2, pull code, rebuild Docker container
+
+```yaml
+# .github/workflows/deploy.yml
+- git pull origin main
+- sudo docker-compose down
+- sudo docker-compose up --build -d
+```
 
 ## Load Test Results
 
@@ -64,129 +154,9 @@ Tested with Locust under 100 concurrent users:
 | Median response time | 200-300ms |
 | 95th percentile | 600-850ms |
 
-Infrastructure handles high load. External LLM API is the bottleneck, not the application code.
+Bottleneck is external LLM API rate limits, not application code.
 
-## Quick Start
-
-**Prerequisites:** Docker, Groq API key (free at console.groq.com)
-
-```bash
-# Clone
-git clone https://github.com/ML-RAGUL/inference-hub.git
-cd inference-hub
-
-# Configure
-cp .env.example .env
-# Add your GROQ_API_KEY to .env
-
-# Run
-docker-compose up --build
-```
-
-API available at `http://localhost:8000/docs`
-
-## API Endpoints
-
-### Register Tenant
-```bash
-POST /signup?business_name=MyCompany&email=test@example.com&business_type=medical
-```
-Returns API key for authentication.
-
-### Get AI Response
-```bash
-POST /inference?prompt=What are symptoms of diabetes
-Header: X-API-Key: sk_live_xxx
-```
-Response includes AI output, tokens used, and remaining quota.
-
-### Check Usage
-```bash
-GET /usage
-Header: X-API-Key: sk_live_xxx
-```
-Returns quota consumption and billing info.
-
-## Business Types
-
-Each type has a specialized system prompt:
-
-| Type | Use Case |
-|------|----------|
-| legal | Law firms - IPC sections, legal terminology |
-| medical | Healthcare - Patient-friendly explanations |
-| ecommerce | Retail - Product descriptions, customer service |
-| education | EdTech - Teaching explanations |
-| general | Default - General purpose assistant |
-
-## Project Structure
-
-```
-inference-hub/
-├── src/
-│   ├── main.py           # API endpoints
-│   └── db/
-│       ├── database.py   # DB connection
-│       └── models.py     # SQLAlchemy models
-├── locustfile.py         # Load tests (with AI)
-├── locustfile_infra.py   # Load tests (infrastructure)
-├── Dockerfile
-├── docker-compose.yml
-└── requirements.txt
-```
-
-## Database Schema
-
-**tenants** - Stores registered businesses
-- id, business_name, email, api_key, business_type, plan, monthly_quota, requests_used
-
-**usage_logs** - Tracks every API request
-- id, tenant_id, prompt, tokens_used, model, cost, response_time_ms
-
-## Local Development
-
-Without Docker:
-
-```bash
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Start PostgreSQL separately, then:
-python init_db.py
-uvicorn src.main:app --reload
-```
-
-## Load Testing
-
-```bash
-# Install
-pip install locust
-
-# Test infrastructure (without AI calls)
-locust -f locustfile_infra.py --host=http://localhost:8000
-
-# Test full flow (with AI calls)
-locust -f locustfile.py --host=http://localhost:8000
-```
-
-Open http://localhost:8089 to run tests.
-
-## AWS Deployment
-
-Deployed on AWS EC2 (t3.micro) in ap-southeast-2 region.
-
-Steps to deploy:
-1. Launch EC2 instance (Ubuntu 24.04)
-2. Install Docker and Docker Compose
-3. Clone repository
-4. Configure environment variables
-5. Run `docker-compose up --build -d`
-6. Open port 8000 in security group
-
-## Configuration
-
-Environment variables (`.env`):
+## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
@@ -195,17 +165,23 @@ Environment variables (`.env`):
 
 ## What I Learned
 
-Building this project helped me understand:
-- Designing multi-tenant architectures with proper data isolation
-- API authentication patterns using API keys
-- Database modeling with SQLAlchemy ORM
-- Containerizing Python applications with Docker
-- Load testing with Locust to identify bottlenecks
-- External API rate limits and how to handle them
-- AWS EC2 deployment and security group configuration
-- SSH key management and Linux server administration
+- Multi-tenant architecture with API key isolation
+- FastAPI async request handling
+- SQLAlchemy ORM with PostgreSQL
+- Docker containerization and compose
+- AWS EC2, RDS, CloudWatch setup
+- CI/CD with GitHub Actions
+- SSH key management and security groups
+- Load testing with Locust
+
+## Future Improvements
+
+- Redis caching for repeated queries
+- Rate limiting per tenant
+- HTTPS with custom domain
+- Kubernetes for auto-scaling
+- Unit tests with pytest
 
 ## License
 
 MIT
- 
